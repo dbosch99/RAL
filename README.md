@@ -46,4 +46,4 @@ L'opzione Prima iscrizione previdenziale dal 1996 applica il massimale INPS 2026
 
 Il grafico in `src/chart.js` parte da zero, mostra i nomi degli assi e arriva a cinque volte il lordo inserito. Con lordo zero usa 50.000 €. Campionamento a dimensione limitata, soglie fiscali aggiunte e curve separate nel passaggio a ordinario. I netti negativi restano nelle tabelle. Lo slider mantiene un intervallo comodo e si espande quando si inserisce un lordo superiore; il campo testuale non ha un massimo prefissato.
 
-La versione v4 del service worker e le risorse `ordinario-4` aggiornano le installazioni PWA esistenti. I salvataggi precedenti vengono migrati conservando importi e aliquote; il vecchio requisito giovani viene convertito in fascia di età e anzianità compatibili con la simulazione precedente.
+Il service worker e le risorse con versione aggiornano le installazioni PWA esistenti. I salvataggi precedenti vengono migrati conservando importi e aliquote; il vecchio requisito giovani viene convertito in fascia di età e anzianità compatibili con la simulazione precedente.
