@@ -36,7 +36,7 @@ function setInputs(input) {
     $(key).value = input[key] === null ? '' : numbers.format(input[key]);
   for (const key of ['period', 'reduction', 'months', 'ageGroup', 'registration']) $(key).value = String(input[key]);
   $('employeeCapped').checked = input.employeeCapped;
-  syncGrossRange(input,true);
+  syncGrossRange(input);
 }
 
 function renderComposition(id, values) {
@@ -191,9 +191,9 @@ function render(input,result) {
   drawChart(input,result);
 }
 
-function syncGrossRange(input,resize=false) {
+function syncGrossRange(input) {
   const range=$('gross-range');
-  if(resize||input.gross>Number(range.max))range.max=String(Math.max(200000,chartLimit(input.gross)));
+  range.max='200000';
   range.value=String(input.gross);
   $('range-maximum').textContent=money(Number(range.max));
 }
@@ -268,7 +268,7 @@ for (const key of ['gross','employeeRate','costs','deductible','employeePensionR
   const value = parseItalian($(key).value,key==='deductible'||key==='fiscalCosts');
   if (value!==null && Number.isFinite(value)) {
     $(key).value=numbers.format(value);
-    if(key==='gross')syncGrossRange(readInput(),true);
+    if(key==='gross')syncGrossRange(readInput());
     update();
   }
 });
