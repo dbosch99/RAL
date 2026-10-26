@@ -127,7 +127,6 @@ function render(input,result) {
   }))$(key).textContent=money(value);
   $('employee-net').classList.toggle('negative',e.net<0);
   $('freelance-net').classList.toggle('negative',f.net<0);
-  $('ordinary-note').hidden=!ordinary;
   $('fiscal-costs-field').hidden=!ordinary;
   $('period').disabled=ordinary;
   $('period-help').textContent=ordinary?'Nel regime ordinario si applica l\'IRPEF, indipendentemente dagli anni di attività.':'Il 5% richiede i requisiti di nuova attività. Oltre 85.000 € si applica il regime ordinario.';
