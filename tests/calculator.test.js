@@ -13,7 +13,9 @@ test('Vuoto e zero nei contributi deducibili restano distinti',()=>{
 test('Aliquota fiscale e riduzione Inarcassa indipendenti',()=>{
   assert.equal(calculate({...DEFAULTS,period:'ordinary',reduction:'reduced'}).freelance.reduced,true);
   assert.equal(calculate({...DEFAULTS,period:'startup',reduction:'full'}).freelance.reduced,false);
-  assert.equal(calculate({...DEFAULTS,reduction:'reduced',youngEligible:false}).freelance.reduced,false);
+  assert.equal(calculate({...DEFAULTS,reduction:'reduced',ageGroup:'35plus'}).freelance.reduced,false);
+  assert.equal(calculate({...DEFAULTS,registration:'later'}).freelance.reduced,false);
+  assert.equal(calculate({...DEFAULTS,period:'ordinary',registration:'first5'}).freelance.reduced,true);
   assert.equal(calculate({...DEFAULTS,gross:65000,reduction:'reduced'}).freelance.reduced,false);
 });
 test('Costi e integrativo non vengono sottratti due volte',()=>{
@@ -25,7 +27,7 @@ test('Costi e integrativo non vengono sottratti due volte',()=>{
   assert.equal(a.freelance.invoice,38480);
 });
 test('Dati mancanti, non finiti, negativi o fuori campo non producono un netto',()=>{
-  for(const patch of [{gross:NaN},{gross:-1},{gross:200001},{gross:Infinity},{costs:-1},{costs:NaN},{employeeRate:-1},{employeeRate:101},{deductible:-1},{deductible:NaN},{months:0},{months:11},{period:'altro'},{reduction:'altro'},{youngEligible:'true'},{employeePensionRate:NaN},{employeePensionRate:101},{integrativeCreditRate:-1},{integrativeCreditRate:Infinity},{employeeCapped:'true'}])
+  for(const patch of [{gross:NaN},{gross:-1},{gross:Infinity},{costs:-1},{costs:NaN},{employeeRate:-1},{employeeRate:101},{deductible:-1},{deductible:NaN},{months:0},{months:11},{period:'altro'},{reduction:'altro'},{ageGroup:'altro'},{registration:'altro'},{employeePensionRate:NaN},{employeePensionRate:101},{integrativeCreditRate:-1},{integrativeCreditRate:Infinity},{employeeCapped:'true'},{gross:100000,fiscalCosts:-1},{gross:100000,fiscalCosts:NaN}])
     assert.equal(calculate({...DEFAULTS,...patch}).valid,false,JSON.stringify(patch));
 });
 
@@ -51,13 +53,14 @@ test('Le aliquote pensionistiche sono regolabili e separate dal netto',()=>{
   assert.equal(changed.freelance.net,base.freelance.net);
 });
 
-test('Il dipendente arriva a 200.000 euro senza estendere il forfettario oltre il limite',()=>{
+test('Il regime passa all ordinario oltre 85.000 euro senza interrompere il confronto',()=>{
   assert.ok(calculate({...DEFAULTS,gross:85000}).freelance);
   const over=calculate({...DEFAULTS,gross:85000.01});
   assert.equal(over.valid,true);
-  assert.equal(over.freelance,null);
-  assert.equal(over.difference,null);
-  assert.equal(over.pensionDifference,null);
+  assert.equal(over.freelance.regime,'ordinary');
+  assert.ok(Number.isFinite(over.difference));
+  assert.ok(Number.isFinite(over.pensionDifference));
+  assert.equal(calculate({...DEFAULTS,gross:85000}).freelance.regime,'forfait');
   const high=calculate({...DEFAULTS,gross:200000});
   const cap=calculate({...DEFAULTS,gross:122295});
   assert.equal(high.valid,true);
@@ -68,6 +71,46 @@ test('Il dipendente arriva a 200.000 euro senza estendere il forfettario oltre i
   const uncapped=calculate({...DEFAULTS,gross:200000,employeeCapped:false});
   assert.equal(uncapped.employee.pensionAnnual,66000);
   assert.ok(uncapped.employee.contributions>high.employee.contributions);
+});
+
+test('Costi deducibili, contributi personali e IVA hanno ruoli distinti nell ordinario',()=>{
+  const r=calculate({...DEFAULTS,gross:100000,costs:20000,fiscalCosts:8000,deductible:12000,ageGroup:'35plus'}).freelance;
+  assert.equal(r.income,92000);
+  assert.equal(r.pension,13340);
+  assert.equal(r.taxable,80000);
+  assert.equal(r.netIrpef,26600);
+  assert.equal(r.provinceTax,1134);
+  assert.equal(r.taxes,27734);
+  assert.equal(r.net,38860.5);
+  assert.equal(r.invoice,104000);
+  assert.equal(r.vat,22880);
+  assert.equal(r.invoiceWithVat,126880);
+  const blank=calculate({...DEFAULTS,gross:100000,costs:20000,fiscalCosts:null,deductible:null}).freelance;
+  assert.equal(blank.fiscalCosts,20000);
+  assert.equal(blank.deducted,blank.contributions);
+  const zero=calculate({...DEFAULTS,gross:100000,costs:20000,fiscalCosts:0}).freelance;
+  assert.equal(zero.income,100000);
+  assert.ok(zero.taxes>blank.taxes);
+});
+
+test('Età, prima iscrizione e reddito sono necessari anche con riduzione richiesta manualmente',()=>{
+  for(const patch of [{ageGroup:'35plus'},{registration:'later'},{costs:50092.99}])
+    assert.equal(calculate({...DEFAULTS,gross:100000,costs:50093,reduction:'reduced',...patch}).freelance.reduced,false);
+  assert.equal(calculate({...DEFAULTS,gross:100000,costs:50093}).freelance.reduced,true);
+  assert.equal(calculate({...DEFAULTS,gross:100000,costs:50093,period:'ordinary'}).freelance.reduced,true);
+});
+
+test('Gli importi elevati restano calcolabili e i massimali limitano soltanto i contributi',()=>{
+  for(const gross of [200001,500000,1000000,10000000]){
+    const r=calculate({...DEFAULTS,gross});
+    assert.equal(r.valid,true);
+    assert.equal(r.freelance.pension,21358.5);
+    assert.equal(r.freelance.integrativeCredited,3872);
+    assert.equal(r.freelance.pensionAnnual,25230.5);
+    assert.equal(r.employee.pensionAnnual,40357.35);
+    assert.ok(Number.isFinite(r.employee.net)&&Number.isFinite(r.freelance.net));
+    assert.ok(Math.abs(r.freelance.net-(gross-r.freelance.contributions-r.freelance.taxes))<1e-6);
+  }
 });
 
 test('Bilancio del lordo e media mensile su un esempio generico',()=>{
