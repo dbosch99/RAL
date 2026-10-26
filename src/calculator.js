@@ -1,7 +1,8 @@
 // Trasposizione del foglio Confronto, modello 2026. Importi non arrotondati
 // per il dipendente; ROUND(..., 2) per le voci Inarcassa e l'imposta sostitutiva.
 export const PARAMETERS = Object.freeze({
-  year: 2026, limit: 200000, forfaitLimit: 85000, employeeCeiling: 122295,
+  year: 2026, forfaitLimit: 85000, employeeCeiling: 122295,
+  pensionCeiling: 147300, integrativePensionCeiling: 193600, vatRate: .22,
   profitability: .78, startupTax: .05, ordinaryTax: .15,
   pensionRate: .145, youngPensionRate: .0725, pensionMinimum: 2785,
   integrativeMinimum: 850, youngIncomeLimit: 49907, minimumDivisor: 3,
@@ -10,7 +11,8 @@ export const PARAMETERS = Object.freeze({
   municipalityRate: 0, extraContributionThreshold: 56224, extraContributionRate: .01,
 });
 export const DEFAULTS = Object.freeze({
-  gross: 37000, period: 'startup', reduction: 'auto', youngEligible: true,
+  gross: 37000, period: 'startup', reduction: 'auto', ageGroup: 'under35', registration: 'first5',
+  fiscalCosts: null,
   employeeRate: 9.19, costs: 0, deductible: 0, months: 12,
   employeePensionRate: 33, integrativeCreditRate: 50, employeeCapped: true,
 });
@@ -23,8 +25,8 @@ export const roundMoney = value => {
 export function validate(input) {
   input = {...DEFAULTS, ...input};
   const errors = {};
-  if (!Number.isFinite(input.gross) || input.gross < 0 || input.gross > PARAMETERS.limit)
-    errors.gross = 'Inserisci un lordo da 0 a 200.000 €.';
+  if (!Number.isFinite(input.gross) || input.gross < 0)
+    errors.gross = 'Inserisci un lordo numerico pari o superiore a zero.';
   if (!Number.isFinite(input.employeeRate) || input.employeeRate < 0 || input.employeeRate > 100)
     errors.employeeRate = 'Inserisci un\'aliquota da 0 a 100%.';
   if (!Number.isFinite(input.costs) || input.costs < 0) errors.costs = 'Inserisci costi annui pari o superiori a zero.';
@@ -32,7 +34,11 @@ export function validate(input) {
     errors.deductible = 'Inserisci un importo positivo, zero oppure lascia vuoto.';
   if (!['startup', 'ordinary'].includes(input.period)) errors.period = 'Seleziona il periodo di attività.';
   if (!['auto', 'reduced', 'full'].includes(input.reduction)) errors.reduction = 'Seleziona la contribuzione Inarcassa.';
-  if (typeof input.youngEligible !== 'boolean') errors.youngEligible = 'Indica il requisito giovani.';
+  if (!['under35','35plus'].includes(input.ageGroup)) errors.ageGroup = 'Seleziona la fascia di età.';
+  if (!['first5','later'].includes(input.registration)) errors.registration = 'Seleziona l\'anzianità di iscrizione.';
+  if (input.gross > PARAMETERS.forfaitLimit && input.fiscalCosts !== null
+      && (!Number.isFinite(input.fiscalCosts) || input.fiscalCosts < 0))
+    errors.fiscalCosts = 'Inserisci costi deducibili pari o superiori a zero oppure lascia vuoto.';
   if (![12, 13, 14].includes(input.months)) errors.months = 'Seleziona 12, 13 o 14 mensilità.';
   for (const key of ['employeePensionRate','integrativeCreditRate'])
     if (!Number.isFinite(input[key]) || input[key] < 0 || input[key] > 100)
@@ -77,29 +83,50 @@ export function calculateEmployee(input) {
 
 export function calculateFreelance(input) {
   input = {...DEFAULTS, ...input};
-  if (input.gross > PARAMETERS.forfaitLimit) return null;
-  const p = PARAMETERS, gross = input.gross, income = gross * p.profitability;
-  const reduced = input.youngEligible && income <= p.youngIncomeLimit
-    && (input.reduction === 'reduced' || (input.reduction === 'auto' && input.period === 'startup'));
+  const p = PARAMETERS, gross = input.gross;
+  const regime = gross <= p.forfaitLimit ? 'forfait' : 'ordinary';
+  const fiscalCosts = regime === 'ordinary' ? (input.fiscalCosts ?? input.costs) : 0;
+  const income = regime === 'forfait' ? gross * p.profitability : gross - fiscalCosts;
+  const youngEligible = input.ageGroup === 'under35' && input.registration === 'first5';
+  const reduced = youngEligible && income <= p.youngIncomeLimit && input.reduction !== 'full';
   const pensionRate = reduced ? p.youngPensionRate : p.pensionRate;
   const pensionMinimum = roundMoney(reduced ? p.pensionMinimum / p.minimumDivisor : p.pensionMinimum);
-  const pension = roundMoney(Math.max(pensionMinimum, income * pensionRate));
+  const pensionBase = Math.min(Math.max(0,income),p.pensionCeiling);
+  const pension = roundMoney(Math.max(pensionMinimum, pensionBase * pensionRate));
   const integrative = roundMoney(gross * p.integrativeRate);
   const integrativeMinimum = roundMoney(reduced ? p.integrativeMinimum / p.minimumDivisor : p.integrativeMinimum);
   const integrativeDue = Math.max(integrativeMinimum, integrative);
-  const integrativeCredited = roundMoney(integrativeDue * input.integrativeCreditRate / 100);
+  const integrativeCredited = roundMoney(Math.min(integrativeDue,p.integrativePensionCeiling*p.integrativeRate) * input.integrativeCreditRate / 100);
   const pensionAnnual = roundMoney(pension + integrativeCredited);
   const integrativeOwn = Math.max(0, integrativeDue - integrative);
   const contributions = pension + integrativeOwn + p.maternity;
   const deducted = input.deductible === null ? contributions : input.deductible;
   const taxable = Math.max(0, income - deducted);
-  const taxRate = input.period === 'startup' ? p.startupTax : p.ordinaryTax;
-  const taxes = roundMoney(taxable * taxRate);
+  const taxRate = regime === 'forfait' ? (input.period === 'startup' ? p.startupTax : p.ordinaryTax) : 0;
+  const bracket1 = regime === 'ordinary' ? Math.min(taxable,28000)*.23 : 0;
+  const bracket2 = regime === 'ordinary' ? Math.max(0,Math.min(taxable,50000)-28000)*.33 : 0;
+  const bracket3 = regime === 'ordinary' ? Math.max(0,taxable-50000)*.43 : 0;
+  const grossTax = bracket1 + bracket2 + bracket3;
+  const referenceIncome = Math.max(0,income), trunc4 = value => Math.trunc(value*10000)/10000;
+  const workDeduction = regime !== 'ordinary' || referenceIncome <= 0 ? 0
+    : (referenceIncome <= 5500 ? 1265 : referenceIncome <= 28000
+      ? 500 + 765*trunc4((28000-referenceIncome)/22500)
+      : referenceIncome <= 50000 ? 500*trunc4((50000-referenceIncome)/22000) : 0)
+      + (referenceIncome > 11000 && referenceIncome <= 17000 ? 50 : 0);
+  const netIrpef = Math.max(0,grossTax-workDeduction);
+  const provinceTax = regime !== 'ordinary' || netIrpef === 0 || taxable <= p.provinceExemption ? 0
+    : Math.min(taxable,p.provinceThreshold)*p.provinceRate+Math.max(0,taxable-p.provinceThreshold)*p.provinceUpperRate;
+  const municipalityTax = regime !== 'ordinary' || netIrpef === 0 ? 0 : taxable*p.municipalityRate;
+  const substituteTax = regime === 'forfait' ? roundMoney(taxable*taxRate) : 0;
+  const taxes = regime === 'forfait' ? substituteTax : netIrpef+provinceTax+municipalityTax;
+  const invoice = gross + integrative;
+  const vat = regime === 'ordinary' ? roundMoney(invoice*p.vatRate) : 0;
   const net = gross - contributions - taxes - input.costs;
-  return { gross, income, reduced, pensionRate, pensionMinimum, pension, integrative,
+  return { gross, regime, fiscalCosts, income, youngEligible, reduced, pensionBase, pensionRate, pensionMinimum, pension, integrative,
     integrativeMinimum, integrativeDue, integrativeOwn, integrativeCredited, pensionAnnual,
-    invoice: gross + integrative,
+    invoice, vat, invoiceWithVat: invoice+vat,
     maternity: p.maternity, contributions, deducted, taxable, taxRate, taxes,
+    bracket1, bracket2, bracket3, grossTax, workDeduction, netIrpef, provinceTax, municipalityTax, substituteTax,
     costs: input.costs, net, monthly: net / input.months };
 }
 
@@ -108,7 +135,9 @@ export function calculate(input) {
   const errors = validate(input);
   if (Object.keys(errors).length) return { valid: false, errors };
   const employee = calculateEmployee(input), freelance = calculateFreelance(input);
+  if (![employee.net,employee.pensionAnnual,freelance.net,freelance.pensionAnnual,freelance.invoiceWithVat].every(Number.isFinite))
+    return {valid:false,errors:{gross:'Importo non rappresentabile numericamente: verifica il valore inserito.'}};
   return { valid: true, employee, freelance,
-    difference: freelance ? freelance.net - employee.net : null,
-    pensionDifference: freelance ? roundMoney(freelance.pensionAnnual - employee.pensionAnnual) : null };
+    difference: freelance.net - employee.net,
+    pensionDifference: roundMoney(freelance.pensionAnnual - employee.pensionAnnual) };
 }
