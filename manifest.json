@@ -3,7 +3,7 @@
   "name": "RAL",
   "short_name": "RAL",
   "lang": "it",
-  "description": "Confronto del netto annuo dipendente e partita IVA forfettaria Inarcassa. Modello 2026 per Riva del Garda.",
+  "description": "Confronto del netto annuo dipendente e partita IVA Inarcassa, forfettaria e ordinaria. Modello 2026 per Riva del Garda.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
