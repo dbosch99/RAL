@@ -29,3 +29,9 @@ GitHub Pages dal ramo `main`, cartella `/ (root)`. `.nojekyll` abilita la pubbli
 Il calcolo avviene nel browser. Le impostazioni sono memorizzate in localStorage e possono essere ripristinate all'esempio iniziale. Nessun servizio di analisi è integrato. L'esportazione CSV è generata sul dispositivo. Il file Excel originale e i suoi dati personali non sono inclusi nel progetto.
 
 Autore: Davide Boschetti.
+
+## Icone e PWA
+
+Le icone si trovano in `Icone/`, nei formati 16, 32, 180, 192 e 512 px. Sono collegate ai favicon, all'icona Apple, all'intestazione e alle anteprime Open Graph. `manifest.json` definisce l'installazione standalone. Il service worker conserva le risorse per l'uso offline e gestisce soltanto le cache con prefisso `ral-pwa-`, preservando le altre PWA su GitHub Pages.
+
+Dopo modifiche a codice o risorse incrementare la versione CACHE in `service-worker.js`.
