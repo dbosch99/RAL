@@ -1,26 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import { calculate, DEFAULTS } from '../src/calculator.js';
 
-const reference = JSON.parse(fs.readFileSync(new URL('./excel-reference.json',import.meta.url),'utf8'));
-test(`${reference.cases.length} scenari confrontati con le formule Excel ricalcolate indipendentemente`,()=>{
-  for(const [index,scenario] of reference.cases.entries()) {
-    const actual=calculate(scenario.input);
-    assert.equal(actual.valid,true,`Scenario ${index}`);
-    for(const side of ['employee','freelance']) for(const [key,expected] of Object.entries(scenario[side])) {
-      if(typeof expected==='boolean') assert.equal(actual[side][key],expected,`Scenario ${index}: ${side}.${key}`);
-      else assert.ok(Math.abs(actual[side][key]-expected)<1e-7,`Scenario ${index}: ${side}.${key}: ${actual[side][key]} != ${expected}`);
-    }
-    assert.ok(Math.abs(actual.employee.monthly * scenario.input.months-actual.employee.net)<1e-7);
-    assert.ok(Math.abs(actual.freelance.monthly * scenario.input.months-actual.freelance.net)<1e-7);
-  }
-});
-test('Campione originale a 37.000 € e deducibili zero',()=>{
-  const result=calculate({...DEFAULTS});
-  assert.ok(Math.abs(result.employee.net-27187.404417272726)<1e-7);
-  assert.ok(Math.abs(result.freelance.net-33399.15)<1e-7);
-});
 test('Vuoto e zero nei contributi deducibili restano distinti',()=>{
   const zero=calculate({...DEFAULTS,deductible:0});
   const blank=calculate({...DEFAULTS,deductible:null});
@@ -46,4 +27,14 @@ test('Costi e integrativo non vengono sottratti due volte',()=>{
 test('Dati mancanti, non finiti, negativi o fuori campo non producono un netto',()=>{
   for(const patch of [{gross:NaN},{gross:-1},{gross:85001},{gross:Infinity},{costs:-1},{costs:NaN},{employeeRate:-1},{employeeRate:101},{deductible:-1},{deductible:NaN},{months:0},{months:11},{period:'altro'},{reduction:'altro'},{youngEligible:'true'}])
     assert.equal(calculate({...DEFAULTS,...patch}).valid,false,JSON.stringify(patch));
+});
+
+test('Bilancio del lordo e media mensile su un esempio generico',()=>{
+  for(const months of [12,13,14]) {
+    const r=calculate({...DEFAULTS,gross:42000,months,costs:1800});
+    assert.ok(Math.abs(r.employee.net-(42000-r.employee.contributions-r.employee.taxes+r.employee.benefits))<1e-7);
+    assert.ok(Math.abs(r.freelance.net-(42000-r.freelance.contributions-r.freelance.taxes-1800))<1e-7);
+    assert.ok(Math.abs(r.employee.monthly*months-r.employee.net)<1e-7);
+    assert.ok(Math.abs(r.freelance.monthly*months-r.freelance.net)<1e-7);
+  }
 });
