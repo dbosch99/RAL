@@ -1,0 +1,5 @@
+{
+  "name": "ral", "version": "1.0.0", "private": true, "type": "module",
+  "description": "Confronto del netto annuo dipendente e partita IVA Inarcassa, modello 2026",
+  "scripts": { "test": "node --test tests/*.test.js", "start": "python3 -m http.server 8765 --bind 127.0.0.1" }
+}
