@@ -18,7 +18,7 @@ Sito statico HTML/CSS/JavaScript, senza dipendenze da installare né compilazion
 
 Avviare un server HTTP nella cartella del progetto, ad esempio `python3 -m http.server 8765 --bind 127.0.0.1`, e aprire http://127.0.0.1:8765. I moduli JavaScript richiedono HTTP: non aprire index.html direttamente come file.
 
-Per le verifiche: `node --test tests/*.test.js` con Node.js 20 o successivo. Le attese di `tests/excel-reference.json` sono generate da una valutazione indipendente delle formule Excel e comprendono le principali soglie fiscali e previdenziali, i due periodi fiscali, i contributi deducibili zero/vuoti/inseriti, le riduzioni, i costi e le mensilità.
+Per le verifiche: `node --test tests/*.test.js` con Node.js 20 o successivo. I test pubblici verificano validazione degli input, deduzioni zero/vuote, indipendenza delle agevolazioni, costi, integrativo, bilanci e mensilità. Il confronto completo con 261 scenari delle formule Excel è conservato separatamente nella cartella di supporto locale; il relativo dataset non è pubblicato.
 
 ## Pubblicazione
 
