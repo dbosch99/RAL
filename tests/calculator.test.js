@@ -25,8 +25,49 @@ test('Costi e integrativo non vengono sottratti due volte',()=>{
   assert.equal(a.freelance.invoice,38480);
 });
 test('Dati mancanti, non finiti, negativi o fuori campo non producono un netto',()=>{
-  for(const patch of [{gross:NaN},{gross:-1},{gross:85001},{gross:Infinity},{costs:-1},{costs:NaN},{employeeRate:-1},{employeeRate:101},{deductible:-1},{deductible:NaN},{months:0},{months:11},{period:'altro'},{reduction:'altro'},{youngEligible:'true'}])
+  for(const patch of [{gross:NaN},{gross:-1},{gross:200001},{gross:Infinity},{costs:-1},{costs:NaN},{employeeRate:-1},{employeeRate:101},{deductible:-1},{deductible:NaN},{months:0},{months:11},{period:'altro'},{reduction:'altro'},{youngEligible:'true'},{employeePensionRate:NaN},{employeePensionRate:101},{integrativeCreditRate:-1},{integrativeCreditRate:Infinity},{employeeCapped:'true'}])
     assert.equal(calculate({...DEFAULTS,...patch}).valid,false,JSON.stringify(patch));
+});
+
+test('Il montante comprende il totale pensionistico e la quota integrativa accreditata',()=>{
+  const r=calculate({...DEFAULTS,gross:42000});
+  assert.equal(r.employee.pensionAnnual,13860);
+  assert.equal(r.freelance.pension,2375.1);
+  assert.equal(r.freelance.integrativeCredited,840);
+  assert.equal(r.freelance.pensionAnnual,3215.1);
+  assert.equal(r.pensionDifference,-10644.9);
+  const changed=calculate({...DEFAULTS,gross:42000,costs:4000,deductible:null});
+  assert.equal(changed.freelance.pensionAnnual,r.freelance.pensionAnnual);
+  assert.equal(calculate({...DEFAULTS,gross:42000,reduction:'full'}).freelance.pensionAnnual,5590.2);
+  assert.equal(calculate({...DEFAULTS,gross:0}).freelance.pensionAnnual,1070);
+});
+
+test('Le aliquote pensionistiche sono regolabili e separate dal netto',()=>{
+  const base=calculate({...DEFAULTS,gross:42000});
+  const changed=calculate({...DEFAULTS,gross:42000,employeePensionRate:30,integrativeCreditRate:43.75});
+  assert.equal(changed.employee.pensionAnnual,12600);
+  assert.equal(changed.freelance.pensionAnnual,3110.1);
+  assert.equal(changed.employee.net,base.employee.net);
+  assert.equal(changed.freelance.net,base.freelance.net);
+});
+
+test('Il dipendente arriva a 200.000 euro senza estendere il forfettario oltre il limite',()=>{
+  assert.ok(calculate({...DEFAULTS,gross:85000}).freelance);
+  const over=calculate({...DEFAULTS,gross:85000.01});
+  assert.equal(over.valid,true);
+  assert.equal(over.freelance,null);
+  assert.equal(over.difference,null);
+  assert.equal(over.pensionDifference,null);
+  const high=calculate({...DEFAULTS,gross:200000});
+  const cap=calculate({...DEFAULTS,gross:122295});
+  assert.equal(high.valid,true);
+  assert.equal(high.employee.pensionAnnual,40357.35);
+  assert.equal(high.employee.contributions,cap.employee.contributions);
+  assert.ok(Math.abs(high.employee.taxable-cap.employee.taxable-(200000-122295))<1e-7);
+  assert.ok(Number.isFinite(high.employee.net));
+  const uncapped=calculate({...DEFAULTS,gross:200000,employeeCapped:false});
+  assert.equal(uncapped.employee.pensionAnnual,66000);
+  assert.ok(uncapped.employee.contributions>high.employee.contributions);
 });
 
 test('Bilancio del lordo e media mensile su un esempio generico',()=>{
