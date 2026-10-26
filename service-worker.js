@@ -1,8 +1,8 @@
 // Incrementare la versione quando cambiano codice o risorse della PWA.
 const CACHE_PREFIX = 'ral-pwa-';
-const CACHE = `${CACHE_PREFIX}2026-10-26-v1`;
+const CACHE = `${CACHE_PREFIX}2026-10-26-v2`;
 const ASSETS = [
-  './', './index.html', './styles.css', './src/app.js', './src/calculator.js',
+  './', './index.html', './styles.css?v=pensione-2', './src/app.js?v=pensione-2', './src/calculator.js?v=pensione-2',
   './manifest.json', './Icone/RAL-16.png', './Icone/RAL-32.png',
   './Icone/RAL-180.png', './Icone/RAL-192.png', './Icone/RAL-512.png'
 ];

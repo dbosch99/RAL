@@ -35,3 +35,11 @@ Autore: Davide Boschetti.
 Le icone si trovano in `Icone/`, nei formati 16, 32, 180, 192 e 512 px. Sono collegate ai favicon, all'icona Apple, all'intestazione e alle anteprime Open Graph. `manifest.json` definisce l'installazione standalone. Il service worker conserva le risorse per l'uso offline e gestisce soltanto le cache con prefisso `ral-pwa-`, preservando le altre PWA su GitHub Pages.
 
 Dopo modifiche a codice o risorse incrementare la versione CACHE in `service-worker.js`.
+
+## Previdenza e RAL fino a 200.000 €
+
+La voce PENSIONE indica i contributi pensionistici annui stimati, prima di rivalutazioni e integrazioni figurative, e resta distinta dal netto disponibile. Per il dipendente si applica un'aliquota complessiva iniziale del 33%; per Inarcassa si sommano soggettivo e quota dell'integrativo totale dovuto, inizialmente al 50%. Le due aliquote sono modificabili e corrispondono ai nuovi parametri del modello Excel.
+
+La RAL dipendente può arrivare a 200.000 €. L'opzione iniziale Prima iscrizione previdenziale dal 1996 applica il massimale INPS 2026 di 122.295 € a contributi e montante. Può essere disattivata quando il massimale non si applica. Le contribuzioni minori sull'eccedenza non sono simulate separatamente. Il modello forfettario rimane limitato a 85.000 €: oltre la soglia i risultati partita IVA e le differenze sono indicati come non calcolati, anche nel CSV. Il grafico parte da zero; i valori negativi restano consultabili nella tabella e nei risultati.
+
+La versione v2 del service worker e le risorse con versione `pensione-2` aggiornano anche le installazioni PWA esistenti.
